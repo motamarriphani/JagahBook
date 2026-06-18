@@ -257,7 +257,7 @@ fun SimpleLocationItem(
                 if (isFavorite) {
                     Icon(Icons.Filled.Star, contentDescription = "Favorite", tint = Color(0xFFFFC107))
                 } else {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Filled.StarOutline, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

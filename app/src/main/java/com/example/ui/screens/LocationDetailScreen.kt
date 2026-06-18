@@ -58,23 +58,13 @@ fun LocationDetailScreen(
                 )
                 
                 BottomSheetItem(
-                    icon = Icons.Filled.Map,
-                    title = "Open in Maps",
-                    subtitle = "Navigate via Google Maps",
-                    iconTint = Color(0xFF4285F4),
-                    onClick = { 
-                        showBottomSheet = false
-                        openInMaps(context, loc.uri) 
-                    }
-                )
-                BottomSheetItem(
-                    icon = Icons.Filled.DirectionsCar,
-                    title = "Get a Ride",
-                    subtitle = "Find ride options",
+                    icon = Icons.Filled.OpenInNew,
+                    title = "Open With",
+                    subtitle = "Open in Maps or other apps",
                     iconTint = MaterialTheme.colorScheme.primary,
                     onClick = { 
                         showBottomSheet = false
-                        getARide(context, loc) 
+                        openWith(context, loc) 
                     }
                 )
                 BottomSheetItem(
@@ -201,8 +191,7 @@ fun LocationDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ActionItem(Icons.Filled.Map, "Open in Maps", Color(0xFF4285F4)) { openInMaps(context, loc.uri) }
-                ActionItem(Icons.Filled.DirectionsCar, "Get a Ride", MaterialTheme.colorScheme.onSurface) { getARide(context, loc) }
+                ActionItem(Icons.Filled.OpenInNew, "Open With", MaterialTheme.colorScheme.primary) { openWith(context, loc) }
                 ActionItem(Icons.Filled.Share, "Share", MaterialTheme.colorScheme.primary) { shareLocation(context, loc) }
                 ActionItem(Icons.Filled.MoreHoriz, "More", MaterialTheme.colorScheme.onSurfaceVariant) { showBottomSheet = true }
             }
@@ -287,25 +276,16 @@ fun BottomSheetItem(
     }
 }
 
-fun openInMaps(context: Context, uriString: String) {
-    try {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
-        intent.setPackage("com.google.android.apps.maps")
-        context.startActivity(intent)
-    } catch (e: android.content.ActivityNotFoundException) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
-        context.startActivity(intent)
-    }
-}
-
-fun getARide(context: Context, location: LocationEntry) {
+fun openWith(context: Context, location: LocationEntry) {
     val uri = if (location.latitude != null && location.longitude != null) {
         Uri.parse("geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(${Uri.encode(location.label)})")
     } else {
         Uri.parse(location.uri)
     }
-    val intent = Intent(Intent.ACTION_VIEW, uri)
-    val chooser = Intent.createChooser(intent, "Get a ride with...")
+    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    val chooser = Intent.createChooser(intent, "Open with...")
     context.startActivity(chooser)
 }
 
@@ -314,6 +294,7 @@ fun shareLocation(context: Context, location: LocationEntry) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, shareText)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     context.startActivity(Intent.createChooser(intent, "Share via..."))
 }

@@ -80,45 +80,63 @@ class PinBookViewModel(private val repository: LocationRepository) : ViewModel()
     }
 
     suspend fun parseUri(rawText: String, context: Context): ParsedLocation = withContext(Dispatchers.IO) {
-        val urlMatch = Regex("https?://[^\\s]+").find(rawText)
-        val urlToParse = urlMatch?.value
-
-        if (urlToParse == null) {
-            return@withContext ParsedLocation("", "", "", null, null)
-        }
-
-        var expandedUrl = urlToParse
-        try {
-            val connection = URL(urlToParse).openConnection() as HttpURLConnection
-            connection.instanceFollowRedirects = true
-            connection.connect()
-            connection.inputStream.use { it.read() } // Force redirect
-            expandedUrl = connection.url.toString()
-            connection.disconnect()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
         var lat: Double? = null
         var lng: Double? = null
         var title: String = ""
 
-        val placeMatch = Regex("/place/([^/]+)/").find(expandedUrl)
-        if (placeMatch != null) {
-            try {
-                title = URLDecoder.decode(placeMatch.groupValues[1].replace("+", " "), "UTF-8")
-            } catch (e: Exception) {}
-        }
+        // Try to parse geo: URI
+        val geoMatch = Regex("geo:(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)").find(rawText)
+        val geoQueryMatch = Regex("[?&]q=(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)").find(rawText)
+        val geoLabelMatch = Regex("\\(([^)]+)\\)").find(rawText)
 
-        val atMatch = Regex("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)").find(expandedUrl)
-        if (atMatch != null) {
-            lat = atMatch.groupValues[1].toDoubleOrNull()
-            lng = atMatch.groupValues[2].toDoubleOrNull()
+        if (rawText.startsWith("geo:")) {
+            if (geoQueryMatch != null) {
+                lat = geoQueryMatch.groupValues[1].toDoubleOrNull()
+                lng = geoQueryMatch.groupValues[2].toDoubleOrNull()
+            } else if (geoMatch != null) {
+                lat = geoMatch.groupValues[1].toDoubleOrNull()
+                lng = geoMatch.groupValues[2].toDoubleOrNull()
+            }
+            if (geoLabelMatch != null) {
+                try {
+                    title = URLDecoder.decode(geoLabelMatch.groupValues[1].replace("+", " "), "UTF-8")
+                } catch (e: Exception) {}
+            }
         } else {
-            val dMatch = Regex("!3d(-?\\d+\\.\\d+)!4d(-?\\d+\\.\\d+)").find(expandedUrl)
-            if (dMatch != null) {
-                lat = dMatch.groupValues[1].toDoubleOrNull()
-                lng = dMatch.groupValues[2].toDoubleOrNull()
+            val urlMatch = Regex("https?://[^\\s]+").find(rawText)
+            val urlToParse = urlMatch?.value
+
+            if (urlToParse != null) {
+                var expandedUrl = urlToParse
+                try {
+                    val connection = URL(urlToParse).openConnection() as HttpURLConnection
+                    connection.instanceFollowRedirects = true
+                    connection.connect()
+                    connection.inputStream.use { it.read() } // Force redirect
+                    expandedUrl = connection.url.toString()
+                    connection.disconnect()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                val placeMatch = Regex("/place/([^/]+)/").find(expandedUrl)
+                if (placeMatch != null) {
+                    try {
+                        title = URLDecoder.decode(placeMatch.groupValues[1].replace("+", " "), "UTF-8")
+                    } catch (e: Exception) {}
+                }
+
+                val atMatch = Regex("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)").find(expandedUrl)
+                if (atMatch != null) {
+                    lat = atMatch.groupValues[1].toDoubleOrNull()
+                    lng = atMatch.groupValues[2].toDoubleOrNull()
+                } else {
+                    val dMatch = Regex("!3d(-?\\d+\\.\\d+)!4d(-?\\d+\\.\\d+)").find(expandedUrl)
+                    if (dMatch != null) {
+                        lat = dMatch.groupValues[1].toDoubleOrNull()
+                        lng = dMatch.groupValues[2].toDoubleOrNull()
+                    }
+                }
             }
         }
 
@@ -142,6 +160,7 @@ class PinBookViewModel(private val repository: LocationRepository) : ViewModel()
             }
         }
 
+        // Return original raw text if no title found and no mapping matched
         ParsedLocation(title, addressLine, city, lat, lng)
     }
 
