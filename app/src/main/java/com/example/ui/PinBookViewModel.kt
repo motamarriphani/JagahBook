@@ -110,6 +110,8 @@ class PinBookViewModel(private val repository: LocationRepository) : ViewModel()
                 var expandedUrl = urlToParse
                 try {
                     val connection = URL(urlToParse).openConnection() as HttpURLConnection
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
                     connection.instanceFollowRedirects = true
                     connection.connect()
                     connection.inputStream.use { it.read() } // Force redirect

@@ -37,7 +37,11 @@ class MainActivity : ComponentActivity() {
           color = MaterialTheme.colorScheme.background
         ) {
           val sharedUrl by sharedUrlFlow.collectAsState()
-          PinBookApp(repository = repository, sharedUrl = sharedUrl)
+          PinBookApp(
+            repository = repository,
+            sharedUrl = sharedUrl,
+            onSharedUrlConsumed = { sharedUrlFlow.value = null }
+          )
         }
       }
     }

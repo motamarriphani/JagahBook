@@ -29,7 +29,7 @@ fun AddEditScreen(
     onNavigateBack: () -> Unit
 ) {
     var label by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Home") }
+    var category by remember { mutableStateOf("Other") }
     var uri by remember { mutableStateOf(incomingUri ?: "") }
     var notes by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
@@ -58,12 +58,15 @@ fun AddEditScreen(
         } else if (!incomingUri.isNullOrBlank()) {
             isParsing = true
             val parsed = viewModel.parseUri(incomingUri, context)
-            if (label.isBlank()) label = parsed.title
+            if (label.isBlank() && parsed.title.isNotBlank()) label = parsed.title
             address = parsed.address
             city = parsed.city
             latitude = parsed.latitude
             longitude = parsed.longitude
             isParsing = false
+            if (parsed.latitude == null && parsed.address.isBlank()) {
+                android.widget.Toast.makeText(context, "Could not extract location details. Please enter manually.", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -97,12 +100,20 @@ fun AddEditScreen(
                     .background(Color(0xFFE8F0FE)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Filled.LocationOn,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
-                )
+                if (isParsing) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Extracting location details...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    Icon(
+                        Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -152,23 +163,21 @@ fun AddEditScreen(
                 onClick = {
                     if (label.isNotBlank() && uri.isNotBlank()) {
                         if (existingLocation != null) {
-                            viewModel.updateLocation(
-                                existingLocation!!.copy(
-                                    label = label,
-                                    category = category,
-                                    uri = uri,
-                                    notes = notes,
-                                    address = address,
-                                    city = city,
-                                    latitude = latitude,
-                                    longitude = longitude
-                                )
-                            )
+                            existingLocation?.copy(
+                                label = label,
+                                category = category,
+                                uri = uri,
+                                notes = notes,
+                                address = address,
+                                city = city,
+                                latitude = latitude,
+                                longitude = longitude
+                            )?.let { viewModel.updateLocation(it) }
                         } else {
                             viewModel.addLocation(
                                 label = label,
                                 category = category,
-                                uri = if(uri.isBlank()) "https://maps.google.com" else uri,
+                                uri = uri,
                                 notes = notes,
                                 address = address,
                                 city = city,

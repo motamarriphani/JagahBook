@@ -27,7 +27,7 @@ object PasteLinkRoute
 data class DetailRoute(val locationId: Int)
 
 @Composable
-fun PinBookApp(repository: LocationRepository, sharedUrl: String?, modifier: Modifier = Modifier) {
+fun PinBookApp(repository: LocationRepository, sharedUrl: String?, onSharedUrlConsumed: () -> Unit, modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val viewModel: PinBookViewModel = viewModel(factory = PinBookViewModelFactory(repository))
 
@@ -46,6 +46,7 @@ fun PinBookApp(repository: LocationRepository, sharedUrl: String?, modifier: Mod
             LaunchedEffect(sharedUrl) {
                 if (sharedUrl != null) {
                     navController.navigate(AddEditRoute(incomingUri = sharedUrl))
+                    onSharedUrlConsumed()
                 }
             }
         }

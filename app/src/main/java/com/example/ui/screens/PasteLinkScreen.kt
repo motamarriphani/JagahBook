@@ -23,7 +23,6 @@ fun PasteLinkScreen(
     onParseLink: (String) -> Unit
 ) {
     var uri by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableStateOf(0) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -44,15 +43,6 @@ fun PasteLinkScreen(
                 .padding(paddingVals)
                 .fillMaxSize()
         ) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Share / Paste Link") })
-                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Manual Entry") })
-            }
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -124,6 +114,15 @@ fun PasteLinkScreen(
                     enabled = uri.isNotBlank()
                 ) {
                     Text("Parse Link", fontSize = 16.sp)
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextButton(
+                    onClick = { onParseLink("") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Skip & Enter Manually")
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))

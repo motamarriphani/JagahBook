@@ -37,36 +37,6 @@ fun HomeScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Place, contentDescription = "Places") },
-                    label = { Text("Places") },
-                    selected = true,
-                    onClick = { },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Group, contentDescription = "Groups") },
-                    label = { Text("Groups") },
-                    selected = false,
-                    onClick = { }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings") },
-                    label = { Text("Settings") },
-                    selected = false,
-                    onClick = { }
-                )
-            }
-        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onAddLocation,
@@ -106,14 +76,6 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Row {
-                        IconButton(onClick = {}) {
-                            Icon(Icons.Filled.Search, "Search")
-                        }
-                        IconButton(onClick = {}) {
-                            Icon(Icons.Filled.MoreVert, "More")
-                        }
-                    }
                 }
             }
 
@@ -142,43 +104,73 @@ fun HomeScreen(
                 )
             }
 
-            if (favorites.isNotEmpty()) {
+            if (locations.isEmpty() && searchQuery.isEmpty()) {
                 item {
-                    Text(
-                        text = "FAVORITES",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Filled.Place,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No saved places yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Tap + to add your first location",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                items(favorites, key = { it.id }) { loc ->
-                    SimpleLocationItem(
-                        location = loc,
-                        onClick = { onLocationClick(loc.id) },
-                        onToggleFavorite = { viewModel.toggleFavorite(loc) },
-                        isFavorite = true
-                    )
+            } else {
+                if (favorites.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "FAVORITES",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+                        )
+                    }
+                    items(favorites, key = { it.id }) { loc ->
+                        SimpleLocationItem(
+                            location = loc,
+                            onClick = { onLocationClick(loc.id) },
+                            onToggleFavorite = { viewModel.toggleFavorite(loc) },
+                            isFavorite = true
+                        )
+                    }
                 }
-            }
 
-            if (others.isNotEmpty() || favorites.isEmpty()) {
-                item {
-                    Text(
-                        text = if(favorites.isEmpty()) "PLACES" else "ALL PLACES",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
-                    )
-                }
-                items(others, key = { it.id }) { loc ->
-                    SimpleLocationItem(
-                        location = loc,
-                        onClick = { onLocationClick(loc.id) },
-                        onToggleFavorite = { viewModel.toggleFavorite(loc) },
-                        isFavorite = false
-                    )
+                if (others.isNotEmpty() || favorites.isEmpty()) {
+                    item {
+                        Text(
+                            text = if(favorites.isEmpty()) "PLACES" else "ALL PLACES",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+                        )
+                    }
+                    items(others, key = { it.id }) { loc ->
+                        SimpleLocationItem(
+                            location = loc,
+                            onClick = { onLocationClick(loc.id) },
+                            onToggleFavorite = { viewModel.toggleFavorite(loc) },
+                            isFavorite = false
+                        )
+                    }
                 }
             }
             

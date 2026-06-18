@@ -23,6 +23,10 @@ import androidx.compose.ui.unit.dp
 import com.example.data.LocationEntry
 import com.example.ui.PinBookViewModel
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationDetailScreen(
@@ -33,6 +37,7 @@ fun LocationDetailScreen(
 ) {
     var location by remember { mutableStateOf<LocationEntry?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     LaunchedEffect(locationId) {
@@ -95,12 +100,35 @@ fun LocationDetailScreen(
                     titleColor = MaterialTheme.colorScheme.error,
                     onClick = { 
                         showBottomSheet = false
-                        viewModel.deleteLocation(loc)
-                        onNavigateBack()
+                        showDeleteConfirm = true
                     }
                 )
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Place") },
+            text = { Text("Are you sure you want to delete this place? This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { 
+                        showDeleteConfirm = false
+                        viewModel.deleteLocation(loc)
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -137,7 +165,8 @@ fun LocationDetailScreen(
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFFE8F0FE)),
+                    .background(Color(0xFFE8F0FE))
+                    .clickable { openWith(context, loc) },
                 contentAlignment = Alignment.Center
             ) {
                 // Map background pattern placeholder
@@ -209,9 +238,17 @@ fun LocationDetailScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     DetailRow(Icons.Filled.LocationOn, loc.address.ifBlank { "No address provided" })
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f), modifier = Modifier.padding(start=56.dp))
-                    DetailRow(Icons.Filled.Explore, if (loc.latitude != null && loc.longitude != null) "${loc.latitude}° N, ${loc.longitude}° E" else "Coordinates unavailable")
+                    
+                    val latStr = if (loc.latitude != null) { if (loc.latitude >= 0) "${loc.latitude}° N" else "${-loc.latitude}° S" } else ""
+                    val lngStr = if (loc.longitude != null) { if (loc.longitude >= 0) "${loc.longitude}° E" else "${-loc.longitude}° W" } else ""
+                    val exploreText = if (loc.latitude != null && loc.longitude != null) "$latStr, $lngStr" else "Coordinates unavailable"
+                    
+                    DetailRow(Icons.Filled.Explore, exploreText)
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f), modifier = Modifier.padding(start=56.dp))
-                    DetailRow(Icons.Filled.CalendarToday, "Saved recently")
+                    
+                    val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(loc.timestamp))
+                    DetailRow(Icons.Filled.CalendarToday, "Saved on $dateStr")
+                    
                     if (loc.notes.isNotBlank()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f), modifier = Modifier.padding(start=56.dp))
                         DetailRow(Icons.Filled.Notes, loc.notes)
@@ -280,13 +317,24 @@ fun openWith(context: Context, location: LocationEntry) {
     val uri = if (location.latitude != null && location.longitude != null) {
         Uri.parse("geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(${Uri.encode(location.label)})")
     } else {
-        Uri.parse(location.uri)
+        Uri.parse(location.uri.ifBlank { "https://maps.google.com" })
     }
-    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val chooser = Intent.createChooser(intent, "Open with...")
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        val fallbackUri = Uri.parse(location.uri.ifBlank { "https://maps.google.com/?q=${location.latitude},${location.longitude}" })
+        val fallbackIntent = Intent(Intent.ACTION_VIEW, fallbackUri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(fallbackIntent)
+        } catch (e2: Exception) {}
     }
-    val chooser = Intent.createChooser(intent, "Open with...")
-    context.startActivity(chooser)
 }
 
 fun shareLocation(context: Context, location: LocationEntry) {
