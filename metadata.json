@@ -1,0 +1,6 @@
+{
+  "name": "PinBook",
+  "description": "A personal, local address book for places instead of people. Save locations, label them, and access them instantly without scrolling through old chats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
