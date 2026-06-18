@@ -315,7 +315,7 @@ fun BottomSheetItem(
 
 fun openWith(context: Context, location: LocationEntry) {
     val uri = if (location.latitude != null && location.longitude != null) {
-        Uri.parse("geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(${Uri.encode(location.label)})")
+        Uri.parse("https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}")
     } else {
         Uri.parse(location.uri.ifBlank { "https://maps.google.com" })
     }

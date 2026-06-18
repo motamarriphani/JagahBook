@@ -80,9 +80,21 @@ class PinBookViewModel(private val repository: LocationRepository) : ViewModel()
     }
 
     suspend fun parseUri(rawText: String, context: Context): ParsedLocation = withContext(Dispatchers.IO) {
+        android.util.Log.d("PinBook", "Raw shared text: $rawText")
         var lat: Double? = null
         var lng: Double? = null
         var title: String = ""
+        var addressLine: String = ""
+
+        // Extract title/address lines from the raw text for fallback
+        val lines = rawText.split('\n').map { it.trim() }.filter { it.isNotBlank() }
+        val nonUrlLines = lines.filter { !it.contains("http://") && !it.contains("https://") }
+        if (nonUrlLines.isNotEmpty()) {
+            title = nonUrlLines.first()
+            if (nonUrlLines.size > 1) {
+                addressLine = nonUrlLines.drop(1).joinToString(", ")
+            }
+        }
 
         // Try to parse geo: URI
         val geoMatch = Regex("geo:(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)").find(rawText)
@@ -112,37 +124,66 @@ class PinBookViewModel(private val repository: LocationRepository) : ViewModel()
                     val connection = URL(urlToParse).openConnection() as HttpURLConnection
                     connection.connectTimeout = 5000
                     connection.readTimeout = 5000
-                    connection.instanceFollowRedirects = true
-                    connection.connect()
-                    connection.inputStream.use { it.read() } // Force redirect
-                    expandedUrl = connection.url.toString()
-                    connection.disconnect()
+                    // Read the response up to 5 redirects
+                    var redirectCount = 0
+                    var currentConnection = connection
+                    var currentUrl = urlToParse
+
+                    while (redirectCount < 10) {
+                        currentConnection.instanceFollowRedirects = false
+                        currentConnection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+                        currentConnection.connect()
+                        val responseCode = currentConnection.responseCode
+                        if (responseCode in 300..399) {
+                            val newUrlStr = currentConnection.getHeaderField("Location")
+                            currentConnection.disconnect()
+                            if (newUrlStr == null) break
+                            
+                            currentUrl = java.net.URI(currentUrl).resolve(newUrlStr).toString()
+                            currentConnection = URL(currentUrl).openConnection() as HttpURLConnection
+                            currentConnection.connectTimeout = 5000
+                            currentConnection.readTimeout = 5000
+                            redirectCount++
+                        } else {
+                            currentConnection.disconnect()
+                            break
+                        }
+                    }
+                    expandedUrl = currentUrl
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
 
+                android.util.Log.d("PinBook", "Expanded URL: $expandedUrl")
+
                 val placeMatch = Regex("/place/([^/]+)/").find(expandedUrl)
-                if (placeMatch != null) {
+                if (placeMatch != null && (title.isBlank() || title.startsWith("https://"))) {
                     try {
-                        title = URLDecoder.decode(placeMatch.groupValues[1].replace("+", " "), "UTF-8")
+                        val parsedTitle = URLDecoder.decode(placeMatch.groupValues[1].replace("+", " "), "UTF-8")
+                        if (parsedTitle.isNotBlank()) title = parsedTitle
                     } catch (e: Exception) {}
                 }
 
-                val atMatch = Regex("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)").find(expandedUrl)
-                if (atMatch != null) {
+                val queryMatch = Regex("[?&](?:query|q)=(-?\\d+\\.\\d+)(?:,|%2C)(-?\\d+\\.\\d+)").find(expandedUrl)
+                val atMatch = Regex("@(-?\\d+\\.\\d+)(?:,|%2C)(-?\\d+\\.\\d+)").find(expandedUrl)
+                val d3Match = Regex("!3d(-?\\d+\\.\\d+)").find(expandedUrl)
+                val d4Match = Regex("!4d(-?\\d+\\.\\d+)").find(expandedUrl)
+
+                if (queryMatch != null) {
+                    lat = queryMatch.groupValues[1].toDoubleOrNull()
+                    lng = queryMatch.groupValues[2].toDoubleOrNull()
+                } else if (atMatch != null) {
                     lat = atMatch.groupValues[1].toDoubleOrNull()
                     lng = atMatch.groupValues[2].toDoubleOrNull()
-                } else {
-                    val dMatch = Regex("!3d(-?\\d+\\.\\d+)!4d(-?\\d+\\.\\d+)").find(expandedUrl)
-                    if (dMatch != null) {
-                        lat = dMatch.groupValues[1].toDoubleOrNull()
-                        lng = dMatch.groupValues[2].toDoubleOrNull()
-                    }
+                } else if (d3Match != null && d4Match != null) {
+                    lat = d3Match.groupValues[1].toDoubleOrNull()
+                    lng = d4Match.groupValues[1].toDoubleOrNull()
                 }
             }
         }
 
-        var addressLine: String = ""
+        android.util.Log.d("PinBook", "Parsed lat=$lat lng=$lng")
+
         var city: String = ""
 
         if (lat != null && lng != null) {
@@ -151,7 +192,10 @@ class PinBookViewModel(private val repository: LocationRepository) : ViewModel()
                 val addresses = geocoder.getFromLocation(lat, lng, 1)
                 if (!addresses.isNullOrEmpty()) {
                     val addr = addresses[0]
-                    addressLine = addr.getAddressLine(0) ?: ""
+                    val extractedAddressLine = addr.getAddressLine(0)
+                    if (!extractedAddressLine.isNullOrBlank()) {
+                        addressLine = extractedAddressLine
+                    }
                     city = addr.locality ?: addr.subAdminArea ?: addr.adminArea ?: ""
                     if (title.isBlank() && addr.featureName != null) {
                         title = addr.featureName

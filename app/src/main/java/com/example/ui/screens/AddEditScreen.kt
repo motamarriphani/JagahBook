@@ -64,7 +64,7 @@ fun AddEditScreen(
             latitude = parsed.latitude
             longitude = parsed.longitude
             isParsing = false
-            if (parsed.latitude == null && parsed.address.isBlank()) {
+            if (parsed.latitude == null && parsed.address.isBlank() && parsed.title.isBlank()) {
                 android.widget.Toast.makeText(context, "Could not extract location details. Please enter manually.", android.widget.Toast.LENGTH_LONG).show()
             }
         }
